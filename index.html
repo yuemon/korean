@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Korean Baby – Days 1–7</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--ink:#1f2433;--mut:#6b7280;--pri:#3b6cf6;--ok:#16a34a;--warn:#d97706;--bad:#dc2626;--line:#e5e7eb}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+header{position:sticky;top:0;background:var(--pri);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;z-index:5}
+header h1{font-size:1.05rem;margin:0;flex:1}header button{background:rgba(255,255,255,.2);color:#fff;border:0}
+main{max-width:760px;margin:0 auto;padding:14px}
+.card{background:var(--card);border-radius:14px;padding:14px;margin:0 0 12px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+h2{font-size:1.2rem;margin:.2rem 0 .6rem}h3{font-size:1rem;margin:.6rem 0 .3rem}
+button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer;color:var(--ink)}
+button.pri{background:var(--pri);color:#fff;border-color:var(--pri)}button:disabled{opacity:.45;cursor:default}
+button.sm{padding:4px 9px;font-size:.85rem}
+.ko{font-size:1.25rem;font-weight:600}.pron{color:var(--warn);font-size:.9rem}.mut{color:var(--mut);font-size:.9rem}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.stat{text-align:center}.stat b{display:block;font-size:1.5rem;color:var(--pri)}
+.day{padding:12px;border-radius:12px;border:2px solid var(--line);background:#fff;text-align:left}
+.day.done{border-color:var(--ok)}.day.recycle{border-color:var(--warn)}.day.locked{opacity:.5}
+.tag{display:inline-block;font-size:.75rem;padding:1px 8px;border-radius:99px;background:#eef2ff;color:var(--pri)}
+.tag.ok{background:#dcfce7;color:var(--ok)}.tag.warn{background:#fef3c7;color:var(--warn)}
+.chunk{border-top:1px solid var(--line);padding:10px 0}.chunk:first-child{border-top:0}
+.hidden{display:none}.ans{background:#f0fdf4;border-radius:10px;padding:8px 10px;margin-top:6px}
+input[type=text],textarea{width:100%;font:inherit;padding:8px;border:1px solid var(--line);border-radius:10px}
+.steps{display:flex;gap:4px;overflow-x:auto;padding-bottom:6px}.steps button{flex:0 0 auto;font-size:.8rem;padding:4px 8px}
+.steps button.cur{background:var(--pri);color:#fff}
+.grade button{flex:1}.g0{color:var(--bad)}.g1{color:var(--warn)}.g2{color:var(--ok)}.g3{color:var(--pri)}
+.cd{font-weight:700;color:var(--warn)}.dlg div{margin:4px 0}.who{color:var(--mut);font-size:.85rem;margin-right:4px}
+.banner{background:#fef3c7;border-radius:10px;padding:8px 10px;font-size:.9rem;margin-bottom:10px}
+.exp li{margin:6px 0}.score-row{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:6px 0;flex-wrap:wrap}
+.score-row .row button{min-width:36px}.score-row button.sel{background:var(--pri);color:#fff}
+table{border-collapse:collapse;width:100%;font-size:.85rem}td,th{border-bottom:1px solid var(--line);padding:4px;text-align:center}
+</style></head><body>
+<header><button id="homeBtn" aria-label="Home">⌂</button><h1 id="hdr">Korean Baby · 한국어</h1><button id="slowBtn" class="sm">🐢 slow: off</button></header>
+<main id="app"></main>
+<script>
+"use strict";
+/* ================= DATA ================= */
+const L=[
+{day:1,title:"Survival Requests",titleKo:"주세요",
+goal:"Ask for things at home, at the table and in shops: water, this one, more — and say yes/no politely.",
+review:["You already know hangul and greetings. Say out loud: 안녕하세요 / 감사합니다 / 안녕히 가세요.","Read aloud and check sound: 감사합니다 sounds like [감사함니다]."],
+chunks:[
+{ko:"주세요",en:"Please give me… (polite request)",ex:"이거 주세요.",exEn:"This one, please."},
+{ko:"물 좀 주세요",en:"Some water, please",ex:"미나야, 물 좀 주세요? — no: kids say this to you! 미나: “물 좀 주세요.”",exEn:"Mina asking you for water"},
+{ko:"이거 주세요",en:"This one, please",ex:"이거 주세요.",exEn:"(at H Mart, pointing) This one, please."},
+{ko:"이거 뭐예요?",en:"What is this?",ex:"이거 뭐예요? — 김치예요.",exEn:"What is this? — It's kimchi."},
+{ko:"더 주세요",en:"More, please",ex:"밥 더 주세요.",exEn:"More rice, please."},
+{ko:"좋아요",pron:"[조아요]",en:"Good / I like it / OK",ex:"이거 좋아요.",exEn:"I like this one."},
+{ko:"싫어요",pron:"[시러요]",en:"I don't want it / I don't like it",ex:"루나: 이거 싫어요!",exEn:"Luna: I don't want this!"},
+{ko:"괜찮아요",pron:"[괜차나요]",en:"It's okay / No thanks",ex:"괜찮아요, 감사합니다.",exEn:"I'm fine, thank you."}],
+pattern:{t:"Thing + (좀) + 주세요",ex:"Put what you want in front of 주세요. Add 좀 to sound softer (like “some / please”). Add 더 for “more”.",ko:["물 주세요.","물 좀 주세요.","물 좀 더 주세요.","이거 주세요."]},
+dialogue:[["미나","물 좀 주세요."],["나","여기 있어요."],["미나","더 주세요!"],["나","좋아요. 여기 있어요."],["루나","이거 싫어요."],["나","괜찮아요. 그럼 이거?"]],
+dialogueEn:"Mina: Some water please. / Me: Here you go. / Mina: More! / Me: OK, here. / Luna: I don't want this. / Me: That's okay. Then this one?",
+notice:{q:"Compare 물 주세요 and 물 좀 주세요. What does 좀 do? Where does it go?",a:"좀 softens the request (≈ “a bit / please”). It sits right before the verb: thing + 좀 + 주세요. Koreans use it constantly in polite requests."},
+practice:[
+{q:"Ask for kimchi, softly.",a:"김치 좀 주세요."},
+{q:"Ask for more water.",a:"물 더 주세요. / 물 좀 더 주세요."},
+{q:"Luna doesn't want the broccoli. What does she say?",a:"싫어요!"},
+{q:"Someone offers you more food and you're full.",a:"괜찮아요, 감사합니다."}],
+retrieve:[
+{en:"At dinner, ask Ben for some water (softly).",ko:"물 좀 주세요."},
+{en:"At the store, pointing: “This one, please.”",ko:"이거 주세요."},
+{en:"You see a strange snack at Korean School. Ask what it is.",ko:"이거 뭐예요?"},
+{en:"Ask for more rice.",ko:"밥 더 주세요."},
+{en:"Mina asks if you like her drawing. “I like it!”",ko:"좋아요!"}],
+speak:["Play “restaurant” with the kids: they serve, you order with 이거 주세요 / 물 좀 주세요 / 더 주세요.","At dinner tonight, make one request only in Korean.","Bring this to Korean Tutor chat: role-play ordering at a Korean restaurant in Surrey."],
+reviewNote:"Say each chunk 3× while doing something real (pouring water, pointing at food).",
+mastery:[{en:"Ask for some water, politely.",ko:"물 좀 주세요."},{en:"“More please.”",ko:"더 주세요."},{en:"“No thanks, I'm okay.”",ko:"괜찮아요."}],
+expansion:[{ko:"주세요",en:"Give me, please."},{ko:"물 주세요",en:"Water, please."},{ko:"물 좀 주세요",en:"Some water, please (softer)."},{ko:"물 좀 더 주세요",en:"A little more water, please."},{ko:"미나야, 물 좀 더 줄래?",en:"(to a child, casual — preview only) Mina, can you give me a bit more water?",note:"Casual form preview — you'll learn 반말 later."}]},
+
+{day:2,title:"Repair Phrases",titleKo:"다시 말해 주세요",
+goal:"Keep a conversation alive when you don't understand — at Korean School pickup, with teachers or other parents.",
+review:["From Day 1: ask for water softly (say it before peeking): 물 좀 주세요.","“This one, please” → 이거 주세요."],
+chunks:[
+{ko:"다시 말해 주세요",pron:"[다시 마래 주세요]",en:"Please say it again",ex:"죄송해요, 다시 말해 주세요.",exEn:"Sorry, please say it again."},
+{ko:"천천히 말해 주세요",pron:"[천천히 마래 주세요]",en:"Please speak slowly",ex:"선생님, 천천히 말해 주세요.",exEn:"Teacher, please speak slowly."},
+{ko:"무슨 뜻이에요?",pron:"[무슨 뜨시에요]",en:"What does it mean?",ex:"‘숙제’가 무슨 뜻이에요?",exEn:"What does 숙제 mean?"},
+{ko:"한국어로 뭐라고 해요?",pron:"[한구거로 뭐라고 해요]",en:"How do you say it in Korean?",ex:"“Backpack”은 한국어로 뭐라고 해요?",exEn:"How do you say “backpack” in Korean?"},
+{ko:"잘 모르겠어요",pron:"[잘 모르게써요]",en:"I'm not sure / I don't really know",ex:"음… 잘 모르겠어요.",exEn:"Hmm… I'm not sure."},
+{ko:"이해 못 했어요",pron:"[이해 모태써요]",en:"I didn't understand",ex:"죄송해요, 이해 못 했어요.",exEn:"Sorry, I didn't understand."},
+{ko:"죄송해요",en:"Sorry / Excuse me",ex:"죄송해요, 다시 말해 주세요.",exEn:"Sorry, say it again please."}],
+pattern:{t:"Verb + 아/어 주세요 = please do it (for me)",ex:"말하다 → 말해 주세요 (please say). Add a word in front to say how: 다시 (again), 천천히 (slowly).",ko:["말해 주세요.","다시 말해 주세요.","천천히 말해 주세요.","천천히 다시 말해 주세요."]},
+dialogue:[["선생님","벤 어머님/아버님, 내일 준비물 있어요."],["나","죄송해요, 천천히 말해 주세요."],["선생님","내일 준비물 있어요."],["나","‘준비물’이 무슨 뜻이에요?"],["선생님","학교에 가져오는 거예요. 크레파스요."],["나","아, 네! 감사합니다."]],
+dialogueEn:"Teacher: Ben's mom/dad, there are supplies for tomorrow. / Me: Sorry, please speak slowly. / Teacher: Supplies for tomorrow. / Me: What does 준비물 mean? / Teacher: Things you bring to school. Crayons. / Me: Ah, yes! Thank you.",
+notice:{q:"Look at ‘준비물’이 무슨 뜻이에요? — what little piece is attached to the word you're asking about?",a:"이/가 marks the topic word you're asking about (준비물 ends in a consonant → 이). After a vowel it's 가: ‘숙제’가 무슨 뜻이에요? Don't stress—just copy the chunk."},
+practice:[
+{q:"Teacher talks too fast.",a:"천천히 말해 주세요."},
+{q:"You missed it completely.",a:"다시 말해 주세요. / 이해 못 했어요."},
+{q:"You want to know the Korean word for “water bottle”.",a:"“Water bottle”은 한국어로 뭐라고 해요?"},
+{q:"Someone asks you a question you can't answer.",a:"잘 모르겠어요."}],
+retrieve:[
+{en:"Ask the teacher to say it again.",ko:"다시 말해 주세요."},
+{en:"Ask another parent to speak slowly.",ko:"천천히 말해 주세요."},
+{en:"Ask what “숙제” means.",ko:"‘숙제’가 무슨 뜻이에요?"},
+{en:"Ask how to say “backpack” in Korean.",ko:"“Backpack”은 한국어로 뭐라고 해요?"},
+{en:"Say: Sorry, I didn't understand.",ko:"죄송해요, 이해 못 했어요."}],
+speak:["Ask Mina to teach you one Korean word from Korean School: “…은/는 한국어로 뭐라고 해요?”","Saturday pickup: use one repair phrase with a teacher.","Bring this to Korean Tutor chat: ask the tutor to talk fast so you can practise repair phrases."],
+reviewNote:"Stick these 6 phrases on the fridge. They are your safety net for every future conversation.",
+mastery:[{en:"Please say it again.",ko:"다시 말해 주세요."},{en:"What does it mean?",ko:"무슨 뜻이에요?"},{en:"I didn't understand.",ko:"이해 못 했어요."}],
+expansion:[{ko:"말해 주세요",en:"Please say (it)."},{ko:"다시 말해 주세요",en:"Please say it again."},{ko:"천천히 다시 말해 주세요",en:"Please say it again slowly."},{ko:"죄송해요, 천천히 다시 말해 주세요",en:"Sorry, please say it again slowly."}]},
+
+{day:3,title:"My Family",titleKo:"우리 가족",
+goal:"Introduce Mina, Ben and Luna, and ask other parents about their kids' names and ages.",
+review:["How do you ask someone to repeat? (다시 말해 주세요)","How do you ask for more? (더 주세요)"],
+chunks:[
+{ko:"우리 딸이에요",pron:"[우리 따리에요]",en:"This is my daughter",ex:"우리 딸이에요. 미나예요.",exEn:"This is my daughter. She's Mina."},
+{ko:"우리 아들이에요",pron:"[우리 아드리에요]",en:"This is my son",ex:"우리 아들이에요. 벤이에요.",exEn:"This is my son. He's Ben."},
+{ko:"이름이 뭐예요?",pron:"[이르미 뭐예요]",en:"What's (your/his/her) name?",ex:"아이 이름이 뭐예요?",exEn:"What's your child's name?"},
+{ko:"몇 살이에요?",pron:"[멷 싸리에요]",en:"How old (are you / is he/she)?",ex:"루나는 몇 살이에요?",exEn:"How old is Luna?"},
+{ko:"일곱 살이에요",pron:"[일곱 싸리에요]",en:"(She) is seven",ex:"미나는 일곱 살이에요.",exEn:"Mina is seven."},
+{ko:"다섯 살이에요",pron:"[다섣 싸리에요]",en:"(He) is five",ex:"벤은 다섯 살이에요.",exEn:"Ben is five."},
+{ko:"세 살이에요",pron:"[세 사리에요]",en:"(She) is three",ex:"루나는 세 살이에요.",exEn:"Luna is three."},
+{ko:"아이가 셋이에요",pron:"[아이가 세시에요]",en:"I have three kids",ex:"우리는 아이가 셋이에요.",exEn:"We have three kids."}],
+pattern:{t:"Noun + 이에요 / 예요 = “is …”",ex:"After a consonant use 이에요 (딸이에요, 벤이에요). After a vowel use 예요 (미나예요, 루나예요). Ages use native numbers: 세, 다섯, 일곱 + 살. (Ages assume Canadian ages: Mina ~7, Ben ~5, Luna ~3 — change them to the real ones!)",ko:["미나예요.","벤이에요.","우리 딸이에요.","일곱 살이에요."]},
+dialogue:[["다른 부모님","안녕하세요! 아이 이름이 뭐예요?"],["나","미나예요. 우리 딸이에요."],["다른 부모님","몇 살이에요?"],["나","일곱 살이에요. 2학년이에요."],["다른 부모님","아, 우리 아들도 2학년이에요!"],["나","와, 반가워요!"]],
+dialogueEn:"Parent: Hi! What's your child's name? / Me: Mina. My daughter. / Parent: How old? / Me: Seven. Grade 2. / Parent: Oh, my son's in grade 2 too! / Me: Wow, nice to meet you!",
+notice:{q:"Why 미나예요 but 벤이에요? And why 미나는 but 벤은?",a:"Vowel-ending names take 예요 and 는; consonant-ending names take 이에요 and 은. Same rule twice: consonant → the longer form."},
+practice:[
+{q:"Introduce Luna (she's next to you).",a:"우리 딸이에요. 루나예요."},
+{q:"Introduce Ben.",a:"우리 아들이에요. 벤이에요."},
+{q:"How old is Luna? Answer.",a:"세 살이에요."},
+{q:"Ask another parent their child's name.",a:"아이 이름이 뭐예요?"}],
+retrieve:[
+{en:"Introduce Mina as your daughter.",ko:"우리 딸이에요. 미나예요."},
+{en:"Introduce Ben as your son.",ko:"우리 아들이에요. 벤이에요."},
+{en:"Ask a classmate's parent: what's the child's name?",ko:"아이 이름이 뭐예요?"},
+{en:"Ask: how old is she?",ko:"몇 살이에요?"},
+{en:"Say: We have three kids.",ko:"아이가 셋이에요."}],
+speak:["Point at each child (or a photo) and introduce them in Korean.","Ask Mina: “선생님 이름이 뭐예요?” (What's your teacher's name?)","Bring this to Korean Tutor chat: role-play meeting a new parent at Korean School."],
+reviewNote:"Introduce all three kids from memory, with ages.",
+mastery:[{en:"This is my son, Ben.",ko:"우리 아들이에요. 벤이에요."},{en:"How old is (s)he?",ko:"몇 살이에요?"},{en:"Luna is three.",ko:"루나는 세 살이에요."}],
+expansion:[{ko:"미나예요",en:"(This) is Mina."},{ko:"우리 딸 미나예요",en:"This is my daughter Mina."},{ko:"우리 딸 미나는 일곱 살이에요",en:"My daughter Mina is seven."},{ko:"미나는 몇 살이에요?",en:"How old is Mina?"},{ko:"일곱 살이에요. 2학년이에요",pron:"[이항녀니에요]",en:"She's seven. She's in grade 2."}]},
+
+{day:4,title:"Food & Eating",titleKo:"밥 먹어요",
+goal:"Talk about meals with the family: let's eat, what are we eating, it's tasty, I'm hungry.",
+review:["Introduce one of your kids (우리 딸/아들이에요).","Ask for more (더 주세요)."],
+chunks:[
+{ko:"밥 먹어요",pron:"[밥 머거요]",en:"(We) eat / Let's eat (a meal)",ex:"얘들아, 밥 먹어요!",exEn:"Kids, time to eat!"},
+{ko:"뭐 먹어요?",pron:"[뭐 머거요]",en:"What are we/you eating?",ex:"오늘 저녁에 뭐 먹어요?",exEn:"What are we eating tonight?"},
+{ko:"같이 먹어요",pron:"[가치 머거요]",en:"Let's eat together",ex:"벤, 같이 먹어요.",exEn:"Ben, let's eat together."},
+{ko:"맛있어요",pron:"[마시써요]",en:"It's delicious",ex:"김밥 맛있어요!",exEn:"The gimbap is delicious!"},
+{ko:"배고파요",en:"I'm hungry",ex:"엄마/아빠, 배고파요!",exEn:"Mom/Dad, I'm hungry!"},
+{ko:"배불러요",en:"I'm full",ex:"배불러요. 괜찮아요.",exEn:"I'm full. I'm okay."},
+{ko:"다 먹었어요",pron:"[다 머거써요]",en:"I ate it all / I'm done",ex:"루나: 다 먹었어요!",exEn:"Luna: All done!"}],
+pattern:{t:"Same sentence: statement, suggestion or question",ex:"해요체 uses ONE form for many jobs. 같이 먹어요. = “We eat together” or “Let's eat together”. Raise your voice at the end → question: 뭐 먹어요↗?",ko:["밥 먹어요.","밥 먹어요?","같이 먹어요.","뭐 먹어요?"]},
+dialogue:[["벤","배고파요!"],["나","밥 먹어요. 같이 먹어요."],["미나","오늘 뭐 먹어요?"],["나","김밥 먹어요."],["루나","맛있어요!"],["벤","다 먹었어요. 더 주세요!"]],
+dialogueEn:"Ben: I'm hungry! / Me: Let's eat, together. / Mina: What are we eating today? / Me: Gimbap. / Luna: Yummy! / Ben: All done. More please!",
+notice:{q:"밥 먹어요 vs 밥 먹어요? — what changed?",a:"Only the intonation. Flat/falling = statement or suggestion; rising = question. Context tells you which."},
+practice:[
+{q:"Call everyone to dinner.",a:"밥 먹어요!"},
+{q:"Ask Mina what she's eating.",a:"뭐 먹어요?"},
+{q:"Tell Ben the soup is tasty.",a:"맛있어요."},
+{q:"You're full.",a:"배불러요."}],
+retrieve:[
+{en:"Dinner's ready. Call the kids.",ko:"얘들아, 밥 먹어요!"},
+{en:"Ask: What are we eating today?",ko:"오늘 뭐 먹어요?"},
+{en:"Invite Luna to eat with you.",ko:"같이 먹어요."},
+{en:"Say the gimbap is delicious.",ko:"김밥 맛있어요."},
+{en:"Ben finished his plate. What might he say?",ko:"다 먹었어요!"}],
+speak:["Use 밥 먹어요 / 맛있어요 / 배불러요 at every meal today.","Ask the kids “뭐 먹고…” — no, just “오늘 뭐 먹어요?” at breakfast.","Bring this to Korean Tutor chat: describe tonight's dinner in 3 short sentences."],
+reviewNote:"Meals = 3 free practice sessions per day. Narrate one meal in Korean chunks.",
+mastery:[{en:"Let's eat together.",ko:"같이 먹어요."},{en:"It's delicious.",ko:"맛있어요."},{en:"I'm hungry.",ko:"배고파요."}],
+expansion:[{ko:"먹어요",en:"(I/we) eat."},{ko:"밥 먹어요",en:"Eat a meal."},{ko:"같이 밥 먹어요",en:"Let's eat together."},{ko:"오늘 저녁에 같이 밥 먹어요",pron:"[저녀게]",en:"Let's eat dinner together tonight."},{ko:"오늘 저녁에 뭐 먹어요?",en:"What are we eating tonight?"}]},
+
+{day:5,title:"I want to…",titleKo:"~고 싶어요",
+goal:"Say what you (and the kids) want to do: eat, go, sleep, play.",
+review:["Say “Let's eat together.” (같이 먹어요)","Say “I'm hungry.” (배고파요)"],
+chunks:[
+{ko:"먹고 싶어요",pron:"[먹꼬 시퍼요]",en:"I want to eat",ex:"김밥 먹고 싶어요.",exEn:"I want to eat gimbap."},
+{ko:"가고 싶어요",pron:"[가고 시퍼요]",en:"I want to go",ex:"공원에 가고 싶어요.",exEn:"I want to go to the park."},
+{ko:"놀고 싶어요",pron:"[놀고 시퍼요]",en:"I want to play",ex:"벤: 더 놀고 싶어요!",exEn:"Ben: I want to play more!"},
+{ko:"자고 싶어요",pron:"[자고 시퍼요]",en:"I want to sleep",ex:"피곤해요. 자고 싶어요.",exEn:"I'm tired. I want to sleep."},
+{ko:"물 마시고 싶어요",pron:"[물 마시고 시퍼요]",en:"I want to drink water",ex:"루나: 물 마시고 싶어요.",exEn:"Luna: I want water."},
+{ko:"뭐 하고 싶어요?",pron:"[뭐 하고 시퍼요]",en:"What do you want to do?",ex:"미나, 주말에 뭐 하고 싶어요?",exEn:"Mina, what do you want to do this weekend?"},
+{ko:"집에 가고 싶어요",pron:"[지베 가고 시퍼요]",en:"I want to go home",ex:"이제 집에 가고 싶어요.",exEn:"I want to go home now."}],
+pattern:{t:"Verb stem + 고 싶어요",ex:"Drop 다 from the dictionary form, add 고 싶어요. 먹다 → 먹고 싶어요, 가다 → 가고 싶어요, 하다 → 하고 싶어요. Question: rise at the end. (Talking about someone else's wish, Koreans often say 싶어해요 — later.)",ko:["먹다 → 먹고 싶어요","가다 → 가고 싶어요","놀다 → 놀고 싶어요","하다 → 하고 싶어요"]},
+dialogue:[["나","미나, 뭐 하고 싶어요?"],["미나","놀이터에 가고 싶어요!"],["벤","저는 아이스크림 먹고 싶어요."],["루나","자고 싶어요…"],["나","좋아요. 먼저 놀이터에 가요."]],
+dialogueEn:"Me: Mina, what do you want to do? / Mina: I want to go to the playground! / Ben: I want to eat ice cream. / Luna: I want to sleep… / Me: OK. First let's go to the playground.",
+notice:{q:"먹고 sounds like [먹꼬], but 가고 sounds normal. Why?",a:"After a stop consonant (ㄱ,ㄷ,ㅂ), the next ㄱ becomes tense ㄲ. 가 ends in a vowel, so no change. Same with 싶어요 → [시퍼요]: ㅍ moves to the next syllable."},
+practice:[
+{q:"마시다 → want to …",a:"마시고 싶어요"},
+{q:"보다 (watch) → want to …",a:"보고 싶어요"},
+{q:"Ben wants to play more. What does he say?",a:"더 놀고 싶어요!"},
+{q:"Ask Luna what she wants to eat.",a:"뭐 먹고 싶어요?"}],
+retrieve:[
+{en:"Say you want to eat gimbap.",ko:"김밥 먹고 싶어요."},
+{en:"Ask Mina what she wants to do.",ko:"뭐 하고 싶어요?"},
+{en:"You're exhausted. Say you want to sleep.",ko:"자고 싶어요."},
+{en:"At the mall, say you want to go home.",ko:"집에 가고 싶어요."},
+{en:"Ask Ben what he wants to eat.",ko:"뭐 먹고 싶어요?"}],
+speak:["Ask each child “뭐 하고 싶어요?” and help them answer with ~고 싶어요.","Say 3 things you want to do this weekend.","Bring this to Korean Tutor chat: tell the tutor 3 things you want to do this week."],
+reviewNote:"~고 싶어요 is a power pattern: any new verb you learn plugs into it.",
+mastery:[{en:"I want to go to the park.",ko:"공원에 가고 싶어요."},{en:"What do you want to eat?",ko:"뭐 먹고 싶어요?"},{en:"I want to play more.",ko:"더 놀고 싶어요."}],
+expansion:[{ko:"먹고 싶어요",en:"I want to eat."},{ko:"김밥 먹고 싶어요",en:"I want to eat gimbap."},{ko:"오늘 김밥 먹고 싶어요",en:"I want to eat gimbap today."},{ko:"오늘 뭐 먹고 싶어요?",en:"What do you want to eat today?"},{ko:"저는 오늘 김밥 먹고 싶어요",en:"I want to eat gimbap today."}]},
+
+{day:6,title:"Places & Going",titleKo:"~에 가요",
+goal:"Say where you're going: school, Korean School, the park, the store, home — and grow sentences step by step.",
+review:["Say “I want to go home.” (집에 가고 싶어요)","Ask “What do you want to do?” (뭐 하고 싶어요?)"],
+chunks:[
+{ko:"어디 가요?",en:"Where are you going?",ex:"미나, 어디 가요?",exEn:"Mina, where are you going?"},
+{ko:"학교에 가요",pron:"[학꾜에 가요]",en:"(I'm) going to school",ex:"아이들이 학교에 가요.",pronEx:"[아이드리]",exEn:"The kids go to school."},
+{ko:"한국 학교에 가요",pron:"[한국 학꾜에 가요]",en:"Going to Korean School",ex:"토요일에 한국 학교에 가요.",exEn:"On Saturdays we go to Korean School."},
+{ko:"공원에 가요",pron:"[공워네 가요]",en:"Going to the park",ex:"오늘 공원에 가요.",exEn:"We're going to the park today."},
+{ko:"마트에 가요",en:"Going to the (grocery) store",ex:"엄마/아빠는 마트에 가요.",exEn:"Mom/Dad is going to the store."},
+{ko:"집에 가요",pron:"[지베 가요]",en:"Going home",ex:"이제 집에 가요.",exEn:"Let's go home now."},
+{ko:"같이 가요",pron:"[가치 가요]",en:"Let's go together",ex:"벤, 같이 가요!",exEn:"Ben, let's go together!"},
+{ko:"토요일에",pron:"[토요이레]",en:"On Saturday",ex:"토요일에 뭐 해요?",exEn:"What do you do on Saturday?"}],
+pattern:{t:"Place + 에 가요",ex:"에 marks the destination (“to”). Time words also take 에: 토요일에 (on Saturday). Order: time → who → place → 가요. In casual speech 에 is often dropped (공원 가요), but learn it with 에 first.",ko:["공원에 가요.","오늘 공원에 가요.","토요일에 한국 학교에 가요.","어디 가요?"]},
+dialogue:[["다른 부모님","토요일에 어디 가요?"],["나","아이들이랑 한국 학교에 가요."],["다른 부모님","그다음에 뭐 해요?"],["나","공원에 가요. 같이 가요!"],["다른 부모님","좋아요!"]],
+dialogueEn:"Parent: Where are you going on Saturday? / Me: To Korean School with the kids. / Parent: What do you do after that? / Me: We go to the park. Come with us! / Parent: Sounds good!",
+notice:{q:"In 토요일에 한국 학교에 가요 there are two 에. Do they mean the same thing?",a:"First 에 = time (on Saturday). Second 에 = destination (to Korean School). Same particle, both answer “where/when on the map”."},
+practice:[
+{q:"Going to the store.",a:"마트에 가요."},
+{q:"Ask Ben where he's going.",a:"어디 가요?"},
+{q:"On Saturday, going to Korean School.",a:"토요일에 한국 학교에 가요."},
+{q:"Invite a friend to go together.",a:"같이 가요."}],
+retrieve:[
+{en:"A neighbour asks where you're off to. You're going to the park.",ko:"공원에 가요."},
+{en:"Say: On Saturday we go to Korean School.",ko:"토요일에 한국 학교에 가요."},
+{en:"Ask Mina where she's going.",ko:"어디 가요?"},
+{en:"Say: Today I'm going to the park with the kids.",ko:"오늘 아이들이랑 공원에 가요."},
+{en:"Time to leave the playground. “Let's go home now.”",ko:"이제 집에 가요."}],
+speak:["Narrate every outing today: “○○에 가요.”","Run the expansion drill out loud 3 times without looking.","Bring this to Korean Tutor chat: tell the tutor your Saturday schedule."],
+reviewNote:"Expansion is how you build long sentences: one new piece at a time.",
+mastery:[{en:"Where are you going?",ko:"어디 가요?"},{en:"We go to Korean School on Saturdays.",ko:"토요일에 한국 학교에 가요."},{en:"Let's go together.",ko:"같이 가요."}],
+expansion:[{ko:"공원 가요",en:"Going to the park (casual, no particle)."},{ko:"공원에 가요",en:"I'm going to the park."},{ko:"오늘 아이들이랑 공원에 가요",pron:"[아이드리랑 공워네]",en:"Today I'm going to the park with the kids."},{ko:"어제 아이들이랑 공원에 갔어요",pron:"[가써요]",en:"Yesterday I went to the park with the kids. (past preview: 가요 → 갔어요)"},{ko:"어제 아이들이랑 공원에 갔어요?",en:"Did you go to the park with the kids yesterday?"},{ko:"네, 어제 아이들이랑 공원에 갔어요",en:"Yes, I went to the park with the kids yesterday."}]},
+
+{day:7,title:"Review & Mini Mastery",titleKo:"복습",
+goal:"Put Days 1–6 together in real mini-conversations about your Saturday, food and family. Prove what's automatic.",
+review:["Day 1: 물 좀 주세요 / 더 주세요","Day 2: 다시 말해 주세요 / 무슨 뜻이에요?","Day 3: 우리 딸이에요 / 몇 살이에요?","Day 4: 같이 먹어요 / 맛있어요","Day 5: ~고 싶어요","Day 6: ~에 가요"],
+chunks:[
+{ko:"오늘 뭐 해요?",en:"What are you doing today?",ex:"미나, 오늘 뭐 해요?",exEn:"Mina, what are you doing today?"},
+{ko:"재미있어요",pron:"[재미이써요]",en:"It's fun",ex:"한국 학교 재미있어요?",exEn:"Is Korean School fun?"},
+{ko:"진짜요?",en:"Really?",ex:"진짜요? 대박!",exEn:"Really? Awesome!"},
+{ko:"잘했어요",pron:"[자래써요]",en:"Well done!",ex:"벤, 잘했어요!",exEn:"Ben, well done!"},
+{ko:"그리고",en:"And (then) — joins sentences",ex:"공원에 가요. 그리고 밥 먹어요.",exEn:"We go to the park. And then we eat."}],
+pattern:{t:"Combine: time + (with whom) + place + 에 가요 / thing + 먹고 싶어요",ex:"Everything you learned this week fits into a few slots. Use 그리고 to link short sentences instead of making one long one.",ko:["토요일에 한국 학교에 가요. 그리고 공원에 가요.","오늘 김밥 먹고 싶어요.","우리 딸이에요. 일곱 살이에요."]},
+dialogue:[["선생님","미나 어머님/아버님, 안녕하세요!"],["나","안녕하세요! 미나 한국 학교 재미있어요?"],["선생님","네, 재미있어요. 미나가 오늘 잘했어요."],["나","진짜요? 감사합니다!"],["선생님","오늘 뭐 해요?"],["나","아이들이랑 공원에 가요. 그리고 같이 밥 먹어요."]],
+dialogueEn:"Teacher: Hello, Mina's mom/dad! / Me: Hi! Is Korean School fun for Mina? / Teacher: Yes, it's fun. Mina did well today. / Me: Really? Thank you! / Teacher: What are you doing today? / Me: Going to the park with the kids. And we'll eat together.",
+notice:{q:"Find every particle in the dialogue (이/가, 이랑, 에). What does each one do?",a:"미나가 = subject (Mina did well); 아이들이랑 = with the kids; 공원에 = to the park. Particles are small, but they tell you who/with/where."},
+practice:[
+{q:"Tell the teacher Ben did well.",a:"벤이 잘했어요."},
+{q:"Ask Mina if Korean School is fun.",a:"한국 학교 재미있어요?"},
+{q:"Say you want to go to the park with the kids.",a:"아이들이랑 공원에 가고 싶어요."},
+{q:"Teacher speaks fast — repair!",a:"죄송해요, 천천히 말해 주세요."}],
+retrieve:[
+{en:"Ask a parent what they're doing today.",ko:"오늘 뭐 해요?"},
+{en:"Praise Luna for finishing her food.",ko:"잘했어요!"},
+{en:"Say you go to Korean School on Saturday, and then to the park.",ko:"토요일에 한국 학교에 가요. 그리고 공원에 가요."},
+{en:"Introduce Luna and her age.",ko:"우리 딸이에요. 루나예요. 세 살이에요."},
+{en:"Someone tells you surprising news.",ko:"진짜요?"}],
+speak:["Record yourself telling the story of your Saturday in 4–5 sentences, then compare with TTS.","Ask each kid one question in Korean today.","Bring this to Korean Tutor chat: ask for a 5-minute mini conversation using only Days 1–7 Korean, with corrections."],
+reviewNote:"Look at your scores. Any day under 3? Recycle it before Day 8.",
+mastery:[{en:"Some water, please.",ko:"물 좀 주세요."},{en:"Please speak slowly.",ko:"천천히 말해 주세요."},{en:"How old is he?",ko:"몇 살이에요?"},{en:"Let's eat together.",ko:"같이 먹어요."},{en:"I want to go home.",ko:"집에 가고 싶어요."},{en:"On Saturday we go to Korean School.",ko:"토요일에 한국 학교에 가요."}],
+expansion:[{ko:"가요",en:"Go."},{ko:"한국 학교에 가요",en:"Go to Korean School."},{ko:"토요일에 한국 학교에 가요",en:"On Saturday (we) go to Korean School."},{ko:"토요일에 아이들이랑 한국 학교에 가요",en:"On Saturday I go to Korean School with the kids."},{ko:"토요일에 아이들이랑 한국 학교에 가요. 그리고 같이 밥 먹어요",en:"…and then we eat together."}]}
+];
+// fix a confusing example on day 1 & 4
+L[0].chunks[1].ex="미나: 물 좀 주세요."; L[0].chunks[1].exEn="Mina: Some water, please.";
+L[3].speak[1]="At breakfast, ask the kids: “오늘 뭐 먹어요?”";
+const STEPS=["Goal","Quick Review","New Korean","Core Pattern","Understand","Notice","Practice","Retrieve","Speak","Review","Mastery Check"];
+const SHORT=[{i:1,lab:"Review · 5 min"},{i:4,lab:"Listening · 5 min"},{i:8,lab:"Speaking · 5 min"},{i:2,lab:"New · 5 min"},{i:10,lab:"Mastery"}];
+const INTERVALS=[0,1,3,7,14,30,60,90];
+const SKILLS=["comprehension","retrieval","pronunciation","grammar","conversation","automaticity"];
+const STAGES=[[1,30,"Korean Baby"],[31,60,"First Words"],[61,120,"Sentence Engine"],[121,180,"Everyday Korean"],[181,240,"Conversation"],[241,300,"Real Korean"],[301,365,"Korean Thinking"]];
+/* ================= STATE ================= */
+const KEY="koreanBabyProgress_v1";
+let S=load();
+function blank(){return{unlocked:1,lessons:{},cards:{},streak:0,lastStudy:null,mode:"full",slow:false,history:[]}}
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.lessons)return Object.assign(blank(),s)}catch(e){}return blank()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+function touchStreak(){const t=today();if(S.lastStudy===t)return;const y=new Date();y.setDate(y.getDate()-1);
+ const ys=y.getFullYear()+"-"+String(y.getMonth()+1).padStart(2,"0")+"-"+String(y.getDate()).padStart(2,"0");
+ S.streak=(S.lastStudy===ys)?S.streak+1:1;S.lastStudy=t;save()}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const $=s=>document.querySelector(s);
+/* ================= AUDIO ================= */
+let koVoice=null,voiceChecked=false;
+function pickVoice(){if(!("speechSynthesis"in window))return;const v=speechSynthesis.getVoices();koVoice=v.find(x=>/^ko/i.test(x.lang))||null;if(v.length)voiceChecked=true}
+if("speechSynthesis"in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
+function say(t,slow){if(!("speechSynthesis"in window)){toast("Speech isn't supported in this browser.");return}
+ pickVoice();if(voiceChecked&&!koVoice)toast("No Korean (ko-KR) voice found. Install a Korean voice in your phone/OS speech settings; audio may sound wrong.");
+ speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.replace(/\[.*?\]/g,""));u.lang="ko-KR";if(koVoice)u.voice=koVoice;u.rate=(slow||S.slow)?0.6:0.95;speechSynthesis.speak(u)}
+function toast(m){let t=$("#toast");if(!t){t=document.createElement("div");t.id="toast";t.style.cssText="position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#1f2433;color:#fff;padding:10px 14px;border-radius:10px;max-width:90%;z-index:9;font-size:.9rem";document.body.appendChild(t)}t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",4000)}
+let recState={rec:null,stream:null,btn:null};
+function pickMime(){if(!window.MediaRecorder||!MediaRecorder.isTypeSupported)return "";for(const m of["audio/webm;codecs=opus","audio/webm","audio/mp4","audio/aac","audio/ogg"]){try{if(MediaRecorder.isTypeSupported(m))return m}catch(e){}}return ""}
+const recHelp='<br>Tips: browsers may block the mic on file:// pages; check the mic permission for this page/browser (site settings, and OS privacy settings); try Chrome, or Safari on iPhone.';
+async function record(btn,text){const box=btn.closest(".recwrap").querySelector(".recout");
+ if(recState.rec&&recState.rec.state==="recording"){if(recState.btn===btn){recState.rec.stop();return}try{recState.rec.stop()}catch(e){}}
+ const insecure=window.isSecureContext===false?'<br>⚠ This page is not a secure context, so the browser may not allow the microphone here.':'';
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){box.innerHTML='<span class="mut">Microphone API (navigator.mediaDevices) is not available here.'+insecure+recHelp+'</span>';return}
+ if(!window.MediaRecorder){box.innerHTML='<span class="mut">MediaRecorder is not supported in this browser.'+recHelp+'</span>';return}
+ let st;try{st=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){box.innerHTML='<span class="mut">Microphone error: <b>'+esc(e.name||"Error")+'</b>: '+esc(e.message||"")+insecure+recHelp+'</span>';return}
+ try{const mime=pickMime();const r=mime?new MediaRecorder(st,{mimeType:mime}):new MediaRecorder(st);const chunks=[];recState={rec:r,stream:st,btn};
+  r.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  r.onerror=e=>{const er=e.error||{};box.innerHTML='<span class="mut">Recorder error: <b>'+esc(er.name||"Error")+'</b>: '+esc(er.message||"")+recHelp+'</span>'};
+  r.onstop=()=>{st.getTracks().forEach(t=>t.stop());btn.textContent="🎙 Record";recState={rec:null,stream:null,btn:null};
+   if(!chunks.length){box.innerHTML='<span class="mut">No audio was captured. Try again and speak for at least a second.'+recHelp+'</span>';return}
+   const type=r.mimeType||mime||(chunks[0].type)||"audio/webm";const blob=new Blob(chunks,{type});const url=URL.createObjectURL(blob);
+   box.innerHTML='';const row=document.createElement("div");row.className="row";row.innerHTML='<span class="mut">You:</span>';
+   const au=document.createElement("audio");au.controls=true;au.preload="auto";au.src=url;au.className="myrec";row.appendChild(au);
+   const mb=document.createElement("button");mb.className="sm";mb.dataset.say=text;mb.textContent="▶ Model";row.appendChild(mb);box.appendChild(row)};
+  r.start(250);btn.textContent="⏹ Stop";box.innerHTML='<span class="cd">● Recording… say it, then tap Stop.</span>';
+ }catch(e){st.getTracks().forEach(t=>t.stop());btn.textContent="🎙 Record";box.innerHTML='<span class="mut">Recorder error: <b>'+esc(e.name||"Error")+'</b>: '+esc(e.message||"")+recHelp+'</span>'}}
+function audioBtns(t,rec){return '<button class="sm" data-say="'+esc(t)+'" aria-label="play">▶</button><button class="sm" data-slow="'+esc(t)+'" aria-label="slow">🐢</button>'+(rec?'<span class="recwrap"><button class="sm" data-rec="'+esc(t)+'">🎙 Record</button><div class="recout"></div></span>':'')}
+/* ================= SRS ================= */
+function cardId(day,i,ko){return "d"+day+"_"+i+"_"+ko.length}
+function addCards(day){const l=L[day-1];[...l.retrieve,...l.mastery].forEach((c,i)=>{const id=cardId(day,i,c.ko);if(!S.cards[id])S.cards[id]={front:c.en,back:c.ko,day,stage:0,due:Date.now(),reps:0,lapses:0}})}
+function dueCards(){const n=Date.now();return Object.entries(S.cards).filter(([k,c])=>c.due<=n)}
+function schedule(c,g){const day=864e5;
+ if(g===0){c.stage=0;c.lapses++;c.due=Date.now()+10*60e3}
+ else if(g===1){c.stage=Math.max(0,c.stage-1);c.due=Date.now()+(c.stage===0?60*60e3:Math.max(1,Math.round(INTERVALS[c.stage]*0.6))*day)}
+ else{c.stage=Math.min(INTERVALS.length-1,c.stage+(g===3?2:1));c.due=Date.now()+INTERVALS[c.stage]*day}
+ c.reps++;save()}
+/* ================= RETRIEVAL ITEM ================= */
+let uid=0;
+function retItem(en,ko,opts={}){const id="r"+(uid++);return `<div class="chunk ret" id="${id}" data-ko="${esc(ko)}" data-cd="${opts.countdown?5:0}" data-card="${opts.card||""}">
+ <div>${esc(en)}</div>${opts.countdown?'<div class="cd">⏱ <span class="cdn">5</span>s — try to say it before time runs out</div>':''}
+ <input type="text" placeholder="Type or say it first (optional)" lang="ko" class="att">
+ <div class="row" style="margin-top:6px"><button class="sm pri" data-reveal="${id}">Reveal answer</button></div>
+ <div class="ans hidden"><span class="ko">${esc(ko)}</span> ${audioBtns(ko,true)}<div class="mycmp mut"></div>
+ <div class="row grade" style="margin-top:6px">${["Again","Hard","Good","Easy"].map((g,i)=>`<button class="sm g${i}" data-grade="${i}" data-for="${id}">${g}</button>`).join("")}</div></div></div>`}
+let cdTimer=null;
+function clearCd(){if(cdTimer){clearInterval(cdTimer);cdTimer=null}}
+function seq(items){return '<div class="seq">'+items.join("")+'</div><p class="mut seqmsg"></p>'}
+function startCountdowns(){clearCd();document.querySelectorAll(".seq").forEach(q=>{const it=[...q.children];it.forEach((x,i)=>x.classList.toggle("hidden",i>0))});const f=document.querySelector(".seq > .ret:not(.hidden)");if(f)runCd(f)}
+function runCd(el){clearCd();if(el.dataset.cd!=="5")return;let n=5;const sp=el.querySelector(".cdn");if(!sp)return;sp.textContent=n;
+ cdTimer=setInterval(()=>{if(!document.body.contains(el)||!el.querySelector(".ans").classList.contains("hidden")){clearCd();return}n--;sp.textContent=n;if(n<=0){clearCd();sp.parentNode.textContent="⏱ Time! Reveal and grade honestly."}},1000);
+ const a=el.querySelector(".att");if(a)try{a.focus({preventScroll:true})}catch(e){}}
+function advanceSeq(el){const q=el.parentNode;if(!q.classList||!q.classList.contains("seq"))return;const nx=el.nextElementSibling;
+ if(nx){nx.classList.remove("hidden");nx.scrollIntoView({behavior:"smooth",block:"center"});runCd(nx)}else{const m=q.nextElementSibling;if(m)m.textContent="✓ Section complete."}}
+const norm=s=>s.replace(/[\s.,!?~“”"'‘’…]/g,"");
+/* ================= VIEWS ================= */
+let cur={day:1,step:0};
+function stageName(d){return (STAGES.find(s=>d>=s[0]&&d<=s[1])||STAGES[0])[2]}
+function chunksLearned(){return Object.entries(S.lessons).filter(([d,x])=>x.status).reduce((a,[d])=>a+L[d-1].chunks.length,0)}
+function dayNum(){const done=Object.keys(S.lessons).filter(d=>S.lessons[d].status).map(Number);return Math.min(365,(done.length?Math.max(...done):0)+1)}
+function home(){clearCd();speechSynthesis&&speechSynthesis.cancel&&speechSynthesis.cancel();const d=dayNum(),due=dueCards().length,cl=chunksLearned();
+ $("#hdr").textContent="Korean Baby · 한국어";
+ let h=`<div class="card"><h2>안녕하세요! 👋</h2><div class="grid">
+ <div class="stat"><b>Day ${d}</b><span class="mut">of 365</span></div>
+ <div class="stat"><b>${stageName(d)}</b><span class="mut">stage</span></div>
+ <div class="stat"><b>${cl}/150</b><span class="mut">chunks (1-month target)</span></div>
+ <div class="stat"><b>🔥 ${S.streak}</b><span class="mut">day streak</span></div></div>
+ <div class="row" style="margin-top:12px"><button class="pri" id="revBtn" ${due?"":"disabled"}>Review queue (${due} due)</button>
+ <label class="mut"><input type="checkbox" id="modeT" ${S.mode==="short"?"checked":""}> 20-minute mode</label></div></div>
+ <div class="card"><h3>Lessons</h3><div class="grid">`;
+ L.forEach(l=>{const st=S.lessons[l.day]||{};const locked=l.day>S.unlocked;
+  h+=`<button class="day ${st.status||""} ${locked?"locked":""}" data-day="${l.day}"><div class="mut">Day ${l.day} ${locked?"🔒":""}</div><div><b>${l.title}</b></div><div class="ko" style="font-size:1rem">${l.titleKo}</div>
+  ${st.status==="done"?'<span class="tag ok">done</span>':st.status==="recycle"?'<span class="tag warn">recycle</span>':""}</button>`});
+ h+=`</div><div class="row" style="margin-top:8px"><button class="sm" id="unlockAll">Manual override: unlock next day</button></div></div>`;
+ const hist=S.history.slice(-10).reverse();
+ h+=`<div class="card"><h3>Score history</h3>${hist.length?`<table><tr><th>Date</th><th>Day</th>${SKILLS.map(s=>`<th title="${s}">${s.slice(0,4)}</th>`).join("")}</tr>${hist.map(x=>`<tr><td>${x.date}</td><td>${x.day}</td>${SKILLS.map(s=>`<td style="color:${x.scores[s]<3?"var(--bad)":"inherit"}">${x.scores[s]}</td>`).join("")}</tr>`).join("")}</table>`:'<p class="mut">Finish a lesson to see scores.</p>'}</div>
+ <div class="card"><h3>Your data</h3><p class="mut">Progress is saved in this browser (localStorage). Export to back up or move to another device.</p>
+ <div class="row"><button id="exp">⬇ Export JSON</button><label class="mut"><button id="impB">⬆ Import JSON</button><input type="file" id="imp" accept=".json,application/json" class="hidden"></label><button id="reset" class="sm">Reset</button></div>
+ <p class="mut" id="voiceNote"></p></div>`;
+ $("#app").innerHTML=h;
+ setTimeout(()=>{pickVoice();const n=$("#voiceNote");if(n)n.textContent=!("speechSynthesis"in window)?"⚠ Speech synthesis not supported here.":koVoice?"🔊 Korean voice: "+koVoice.name:"⚠ No Korean voice detected yet — add a Korean (ko-KR) voice in your OS settings for audio."},600);
+}
+function lesson(day,step){clearCd();cur={day,step};const l=L[day-1];touchStreak();
+ $("#hdr").textContent=`Day ${day} · ${l.title}`;
+ const short=S.mode==="short";const list=short?SHORT:STEPS.map((s,i)=>({i,lab:s}));
+ const pos=list.findIndex(x=>x.i===step);
+ let h=`<div class="card"><div class="row" style="justify-content:space-between"><span class="tag">${short?"20-min mode":"Full 45–60 min"}</span><span class="mut">${esc(l.titleKo)}</span></div>
+ <div class="steps" style="margin-top:8px">${list.map(x=>`<button class="${x.i===step?"cur":""}" data-step="${x.i}">${x.lab}</button>`).join("")}<button data-step="99" class="${step===99?"cur":""}">Scores</button></div></div><div class="card">`;
+ h+=step===99?scoreView(l):stepView(l,step,short);
+ const nextI=step===99?null:(pos<list.length-1?list[pos+1].i:99);
+ const prevI=step===99?list[list.length-1].i:(pos>0?list[pos-1].i:null);
+ h+=`</div><div class="row" style="justify-content:space-between">${prevI!==null?`<button data-step="${prevI}">← Back</button>`:"<span></span>"}${nextI!==null?`<button class="pri" data-step="${nextI}">Next →</button>`:""}</div>`;
+ $("#app").innerHTML=h;window.scrollTo(0,0);startCountdowns()}
+function chunkHTML(c){return `<div class="chunk"><div class="row"><span class="ko">${esc(c.ko)}</span>${c.pron?`<span class="pron">${esc(c.pron)}</span>`:""}</div><div>${esc(c.en)}</div>
+ <div class="row" style="margin-top:4px">${audioBtns(c.ko,true)}</div>
+ <div style="margin-top:6px"><span>${esc(c.ex)}</span> <button class="sm" data-say="${esc(c.ex.replace(/^[^:]*: /,""))}">▶</button><div class="mut">${esc(c.exEn)}</div></div></div>`}
+function stepView(l,s,short){switch(s){
+ case 0:return `<h2>DAY ${l.day} — ${esc(l.title)}</h2><p><b>Goal:</b> ${esc(l.goal)}</p><p class="mut">Loop: hear → understand → notice → imitate → recall → use. Don't peek at answers before trying. Say everything out loud.</p>`;
+ case 1:return `<h2>1 · Quick Review</h2><p class="mut">Try from memory first, out loud.</p><ul>${l.review.map(r=>`<li>${esc(r)}</li>`).join("")}</ul>${l.day>1?`<h3>Retrieve from last lesson</h3>${seq(L[l.day-2].mastery.map(m=>retItem(m.en,m.ko,{countdown:true})))}`:""}`;
+ case 2:{const cs=short?l.chunks.slice(0,5):l.chunks;return `<h2>2 · New Korean</h2><p class="mut">Listen ▶, repeat, record 🎙, compare. Brackets show sound changes only.</p>${cs.map(chunkHTML).join("")}`}
+ case 3:return `<h2>3 · Core Pattern</h2><h3>${esc(l.pattern.t)}</h3><p>${esc(l.pattern.ex)}</p>${l.pattern.ko.map(k=>`<div class="row" style="margin:4px 0"><span class="ko">${esc(k)}</span>${audioBtns(k.split("→").pop().trim())}</div>`).join("")}`;
+ case 4:return `<h2>4 · Understand</h2><p class="mut">Listen first without the English. Then check.</p><button class="pri" data-dlg="1">▶ Play whole dialogue</button><div class="dlg" style="margin-top:8px">${l.dialogue.map(([w,k])=>`<div><span class="who">${esc(w)}</span><span class="ko" style="font-size:1.1rem">${esc(k)}</span> <button class="sm" data-say="${esc(k)}">▶</button></div>`).join("")}</div>
+  <button class="sm" data-toggle="dlgEn">Show English</button><div id="dlgEn" class="hidden ans">${esc(l.dialogueEn)}</div>`;
+ case 5:return `<h2>5 · Notice</h2><p>${esc(l.notice.q)}</p><textarea rows="2" placeholder="Your guess…"></textarea><button class="sm pri" data-toggle="nA" style="margin-top:6px">Reveal</button><div id="nA" class="hidden ans">${esc(l.notice.a)}</div>`;
+ case 6:return `<h2>6 · Practice</h2>${l.practice.map(p=>retItem(p.q,p.a)).join("")}<h3>Sentence expansion</h3>${expansion(l)}`;
+ case 7:return `<h2>7 · Retrieve</h2><p class="mut">One at a time: the timer starts when each item appears; grade it to get the next. Situation → Korean. Attempt first (say or type), then reveal. 5-second rule.</p>${seq(l.retrieve.map(r=>retItem(r.en,r.ko,{countdown:true})))}`;
+ case 8:return `<h2>8 · Speak</h2><ul>${l.speak.map(x=>`<li>${esc(x)}</li>`).join("")}</ul><h3>Shadow the dialogue</h3>${l.dialogue.map(([w,k])=>`<div class="chunk"><span class="who">${esc(w)}</span><span class="ko" style="font-size:1.05rem">${esc(k)}</span><div class="row">${audioBtns(k,true)}</div></div>`).join("")}
+  <div class="banner" style="margin-top:10px">💬 Bring this to your <b>Korean Tutor chat</b>: paste today's Speak prompts and ask for a mini-conversation with corrections (You said / More natural / Why / Try again).</div>`;
+ case 9:return `<h2>9 · Review</h2><p>${esc(l.reviewNote)}</p><h3>Today's chunks</h3>${l.chunks.map(c=>`<div class="row" style="margin:3px 0"><span class="ko" style="font-size:1.05rem">${esc(c.ko)}</span>${audioBtns(c.ko)}<span class="mut">${esc(c.en)}</span></div>`).join("")}<p class="mut">These become review cards when you finish the lesson.</p>`;
+ case 10:return `<h2>10 · Mastery Check</h2><p class="mut">No peeking. Hard 5-second rule. Then go to Scores.</p>${seq(l.mastery.map(m=>retItem(m.en,m.ko,{countdown:true})))}`;
+}}
+function expansion(l){const id="ex"+l.day;return `<ol class="exp" id="${id}">${l.expansion.map((e,i)=>`<li class="${i?"hidden":""}"><span class="ko" style="font-size:1.1rem">${esc(e.ko)}</span>${e.pron?` <span class="pron">${esc(e.pron)}</span>`:""} ${audioBtns(e.ko,i===l.expansion.length-1)}<div class="mut">${esc(e.en)}</div>${e.note?`<div class="mut">${esc(e.note)}</div>`:""}</li>`).join("")}</ol>
+ <p class="mut">Before each reveal, try building the next sentence yourself.</p><button class="sm pri" data-expand="${id}">Next step ↓</button>`}
+let scoresDraft={};
+function scoreView(l){scoresDraft={};return `<h2>End-of-lesson scores</h2><p class="mut">Be honest (0 = not at all, 5 = automatic). Any score under 3 → recycle this lesson.</p>
+ ${SKILLS.map(s=>`<div class="score-row"><span style="text-transform:capitalize">${s}</span><div class="row">${[0,1,2,3,4,5].map(n=>`<button class="sm" data-score="${s}" data-n="${n}">${n}</button>`).join("")}</div></div>`).join("")}
+ <button class="pri" id="finish" style="margin-top:10px">Finish lesson</button><div id="result"></div>`}
+function finish(){const l=L[cur.day-1];if(SKILLS.some(s=>scoresDraft[s]===undefined)){toast("Score all six skills first.");return}
+ const low=SKILLS.filter(s=>scoresDraft[s]<3);const status=low.length?"recycle":"done";
+ S.lessons[l.day]={status,scores:{...scoresDraft},date:today()};S.history.push({date:today(),day:l.day,scores:{...scoresDraft}});
+ addCards(l.day);if(status==="done"&&l.day<7)S.unlocked=Math.max(S.unlocked,l.day+1);touchStreak();save();
+ const all5=SKILLS.every(s=>scoresDraft[s]===5);
+ $("#result").innerHTML=`<div class="${status==="done"?"ans":"banner"}" style="margin-top:10px">${status==="done"?(all5?"🌟 All 5s — extend: make 3 new sentences of your own with today's pattern.":"✅ Lesson complete! ")+(l.day<7?`Day ${l.day+1} unlocked. `:"Week 1 complete! ")+"Your cards are in the review queue.":`🔁 Recycle suggested — low: ${low.join(", ")}. Repeat this lesson (try 20-min mode) before moving on. You can still unlock the next day from Home (manual override).`}</div><button style="margin-top:8px" data-go="home">Home</button>`}
+let rq=[];
+function review(){touchStreak();rq=dueCards().map(([k])=>k).sort(()=>Math.random()-.5);nextReview()}
+function nextReview(){clearCd();$("#hdr").textContent="Review queue";if(!rq.length){$("#app").innerHTML=`<div class="card"><h2>All done for now 🎉</h2><p>Due cards cleared. Missed cards come back in ~10 minutes.</p><button class="pri" data-go="home">Home</button></div>`;return}
+ const k=rq[0],c=S.cards[k];$("#app").innerHTML=`<div class="card"><div class="mut">${rq.length} left · from Day ${c.day}</div>${retItem(c.front,c.back,{countdown:true,card:k})}</div>`;startCountdowns()}
+/* ================= EVENTS ================= */
+document.addEventListener("click",e=>{const b=e.target.closest("button,[data-day]");if(!b)return;const d=b.dataset;
+ if(b.id==="homeBtn"||d.go==="home")return home();
+ if(b.id==="slowBtn"){S.slow=!S.slow;save();b.textContent="🐢 slow: "+(S.slow?"on":"off");return}
+ if(d.say!==undefined)return say(d.say);if(d.slow!==undefined)return say(d.slow,true);
+ if(d.rec!==undefined)return record(b,d.rec);
+ if(d.day){const n=+d.day;if(n>S.unlocked){toast("Locked — finish Day "+(n-1)+" first, or use manual override.");return}return lesson(n,S.mode==="short"?1:0)}
+ if(d.step!==undefined)return lesson(cur.day,+d.step);
+ if(d.toggle){$("#"+d.toggle).classList.toggle("hidden");return}
+ if(d.dlg){const l=L[cur.day-1];speechSynthesis.cancel();l.dialogue.forEach(([w,k])=>{const u=new SpeechSynthesisUtterance(k);u.lang="ko-KR";if(koVoice)u.voice=koVoice;u.rate=S.slow?0.6:0.95;speechSynthesis.speak(u)});return}
+ if(d.expand){const h=document.querySelector("#"+d.expand+" li.hidden");if(h){h.classList.remove("hidden");say(h.querySelector(".ko").textContent)}if(!document.querySelector("#"+d.expand+" li.hidden")){b.disabled=true;b.textContent="Done — now say the whole ladder from memory"}return}
+ if(d.reveal){const el=$("#"+d.reveal);const att=el.querySelector(".att").value.trim();el.querySelector(".ans").classList.remove("hidden");b.disabled=true;if(el.dataset.cd==="5")clearCd();
+  el.querySelector(".mycmp").textContent=att?(norm(att)===norm(el.dataset.ko)?"✅ Exact match!":"You wrote: "+att+" — compare carefully (particles, endings)."):"";return}
+ if(d.grade!==undefined){const el=$("#"+d.for);el.querySelectorAll("[data-grade]").forEach(x=>x.disabled=true);b.style.outline="2px solid var(--pri)";const g=+d.grade;
+  if(!el.dataset.card)advanceSeq(el);if(el.dataset.card){const c=S.cards[el.dataset.card];schedule(c,g);rq.shift();if(g===0)toast("Again — this card returns in 10 minutes.");setTimeout(nextReview,350)}return}
+ if(d.score){scoresDraft[d.score]=+d.n;b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("sel",x===b));return}
+ if(b.id==="finish")return finish();
+ if(b.id==="revBtn")return review();
+ if(b.id==="unlockAll"){if(S.unlocked>=7){toast("All 7 days are already unlocked.");return}if(confirm("Unlock Day "+(S.unlocked+1)+" without finishing/passing the previous day?")){S.unlocked++;save();home()}return}
+ if(b.id==="exp"){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:"application/json"}));a.download="korean-progress-"+today()+".json";document.body.appendChild(a);a.click();a.remove();return}
+ if(b.id==="impB"){$("#imp").click();return}
+ if(b.id==="reset"){if(confirm("Erase all progress? Export first if unsure.")){S=blank();save();home()}return}
+});
+document.addEventListener("change",e=>{if(e.target.id==="modeT"){S.mode=e.target.checked?"short":"full";save()}
+ if(e.target.id==="imp"){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!o||typeof o.lessons!=="object")throw 0;S=Object.assign(blank(),o);save();toast("Progress imported.");home()}catch(x){toast("That file isn't a valid progress export.")}};r.readAsText(f)}});
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList.contains("att")){const r=e.target.closest(".ret");r.querySelector("[data-reveal]").click()}});
+$("#slowBtn").textContent="🐢 slow: "+(S.slow?"on":"off");
+home();
+</script></body></html>
